@@ -138,3 +138,23 @@ If you have templates encoded in different formats, an instance of
 .. _static: https://pypi.python.org/pypi/static
 .. _kid: https://pypi.python.org/pypi/kid
 .. _Genshi: https://pypi.python.org/pypi/Genshi
+
+IP Restiction and Whitelisting (Python 3.3+)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The server can be configured (using environment variables) to restrict access
+to a white list of IP addresses or IP network ranges.  Python 3.3 or newer is 
+needed for this feature, as it makes use of the ipaddress library. To turn on IP
+restriction set a truthy environment variable called RESTICT_IPS, and a comma
+separated list of IP addresses and/or network ranges to allow access to the
+server, as a variable called ALLOWED_IPS.
+
+For example:
+
+    export RESTRICT_IPS=true
+    export ALLOWED_IPS='12.34.56.78,123.456.789.0/24'
+
+Would allow the IP 12.34.56.78, and also any IP in the range 123.456.789.0/24
+to access the server.  You can specify as many, or as few, addresses/ranges as
+you like.  Note: setting RESTRICT_IPS to a truthy value, and not specifying any
+ALLOWED_IPS, will block all requests.

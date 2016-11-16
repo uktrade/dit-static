@@ -42,6 +42,11 @@ from wsgiref.simple_server import make_server
 from optparse import OptionParser
 
 try:
+    import ipaddress
+except ImportError:
+    pass
+
+try:
     from pkg_resources import resource_filename, Requirement
 except:
     pass
@@ -132,6 +137,7 @@ class Cling(object):
     not_found = StatusApp('404 Not Found')
     not_modified = StatusApp('304 Not Modified', "")
     moved_permanently = StatusApp('301 Moved Permanently')
+    forbidden = StatusApp('403 Forbidden')
     method_not_allowed = StatusApp('405 Method Not Allowed')
 
     def __init__(self, root, **kw):
@@ -144,6 +150,8 @@ class Cling(object):
 
     def __call__(self, environ, start_response):
         """Respond to a request when called in the usual WSGI way."""
+        if not self._is_allowed_ip(environ):
+            return self.forbidden(environ, start_response)
         if environ['REQUEST_METHOD'] not in ('GET', 'HEAD'):
             headers = [('Allow', 'GET, HEAD')]
             return self.method_not_allowed(environ, start_response, headers)
@@ -204,6 +212,35 @@ class Cling(object):
             return True
         else:
             return False
+
+    def _is_allowed_ip(self, environ):
+        try:
+            ipaddress
+        except NameError:
+            return True
+        restrict = environ.get('RESTRICT_IPS', '')
+        if restrict.lower() in ['true', 'yes', '1']:
+            try:
+                request_ip_str = environ['HTTP_X_FORWARDED_FOR'].split(',')[-1].strip()
+            except KeyError:
+                request_ip_str = environ['REMOTE_ADDR']
+            allowed_ips = environ.get('ALLOWED_IPS', '').split(',')
+            request_ip = ipaddress.ip_address(request_ip_str)
+            for allowed_item in allowed_ips:
+                try:
+                    allowed_ip = ipaddress.ip_address(allowed_item.strip())
+                    if request_ip == allowed_ip:
+                        break
+                except ValueError:
+                    try:
+                        allowed_range = ipaddress.ip_network(allowed_item.strip())
+                        if request_ip in ipaddress.ip_network(allowed_range):
+                            break
+                    except ValueError:
+                        pass
+            else:
+                return False
+        return True
 
     def _guess_type(self, full_path):
         """Guess the mime type using the mimetypes module."""
